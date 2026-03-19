@@ -1,20 +1,25 @@
-from agent import ImageState, agent, routing, generate_image
+from agent import ImageState, orchestra, orchestra_routing, story_writer, image_gen
 from langgraph.graph import StateGraph, START, END
-from langgraph.prebuilt import ToolNode
 import dotenv
 dotenv.load_dotenv()
 
 workflow = StateGraph(ImageState)
-workflow.add_node("agent", agent)
-workflow.add_node("gen_image", ToolNode([generate_image]))
 
-workflow.add_edge(START, "agent")
+# 3 Nodes
+workflow.add_node("orchestra", orchestra)
+workflow.add_node("story_writer", story_writer)
+workflow.add_node("image_gen", image_gen)
+
+# Edges
+workflow.add_edge(START, "orchestra")
 workflow.add_conditional_edges(
-    "agent",
-    routing,
-    {"tool": "gen_image", "done": END}
+    "orchestra",
+    orchestra_routing,
+    {"story_writer": "story_writer"}
 )
-workflow.add_edge("gen_image", "agent")
+workflow.add_edge("story_writer", "image_gen")
+workflow.add_edge("image_gen", END)
+
 workflow = workflow.compile()
 
 if __name__ == "__main__":
@@ -23,8 +28,7 @@ if __name__ == "__main__":
     while user_input.lower() != "exit":
         state["user_input"] = user_input
         state = workflow.invoke(state)
+        print(f"\nStory: {state.get('story')}")
         if state.get("generation_output"):
-            print(f"Story: {state.get('story')}")
-            print(f"Image generated!")
-            break
+            print("Image generated!")
         user_input = input("User: ")
